@@ -1,101 +1,191 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import axios from "axios";
+import dynamic from "next/dynamic";
+import {
+  FiSend, FiPlus, FiTrash2, FiTerminal, FiBook,
+  FiSettings, FiRadio, FiServer, FiHash, FiClock, FiFolder, FiEye
+} from "react-icons/fi";
 
-export default function Home() {
+const ReactJson = dynamic(() => import("react-json-view"), {
+  ssr: false,
+  loading: () => <div className="text-gray-400">Loading...</div>,
+});
+
+export default function HoppscotchClone() {
+  const [method, setMethod] = useState("GET");
+  const [url, setUrl] = useState("https://jsonplaceholder.typicode.com/posts");
+  const [activeTab, setActiveTab] = useState("Params");
+  const [queryParams, setQueryParams] = useState([]);
+  const [headers, setHeaders] = useState([]);
+  const [body, setBody] = useState("{}");
+  const [response, setResponse] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [responseType, setResponseType] = useState("json");
+  const [showHistory, setShowHistory] = useState(false); // 🟢 Toggle History
+
+  useEffect(() => {
+    const storedHistory = JSON.parse(localStorage.getItem("requestHistory")) || [];
+    setHistory(storedHistory);
+  }, []);
+
+  // ✅ Save Request History
+  const saveToHistory = (newRequest) => {
+    const updatedHistory = [newRequest, ...history.slice(0, 9)];
+    setHistory(updatedHistory);
+    localStorage.setItem("requestHistory", JSON.stringify(updatedHistory));
+  };
+
+  // ✅ Send API Request
+  const sendRequest = async () => {
+    try {
+      setLoading(true);
+      const config = {
+        method: method.toLowerCase(),
+        url,
+        params: Object.fromEntries(queryParams.map(p => [p.key, p.value])),
+        headers: Object.fromEntries(headers.map(h => [h.key, h.value])),
+        data: activeTab === "Body" ? JSON.parse(body) : undefined
+      };
+
+      const startTime = Date.now();
+      const res = await axios(config);
+      setResponse({
+        data: res.data,
+        status: res.status,
+        headers: res.headers,
+        time: Date.now() - startTime
+      });
+
+      // Auto-detect response type
+      const contentType = res.headers["content-type"];
+      if (contentType.includes("json")) setResponseType("json");
+      else if (contentType.includes("xml")) setResponseType("xml");
+      else setResponseType("html");
+
+      saveToHistory({ method, url, headers, body, time: new Date().toLocaleString() });
+    } catch (err) {
+      setResponse({
+        error: {
+          message: err.message,
+          data: err.response?.data || "No response",
+          status: err.response?.status || "Unknown"
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex">
+        {/* Sidebar Navigation */}
+        <div className="w-16 border-r border-gray-800 flex flex-col items-center py-4">
+          <NavIcon icon={<FiServer />} />
+          <NavIcon icon={<FiRadio />} />
+          <NavIcon icon={<FiHash />} />
+          <button onClick={() => setShowHistory(!showHistory)} className="p-3 mb-2 rounded hover:bg-gray-800 text-gray-400">
+            <FiClock />
+          </button>
+          <NavIcon icon={<FiFolder />} />
+          <div className="flex-1" />
+          <NavIcon icon={<FiSettings />} />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Request Bar */}
+          <div className="flex items-center gap-4 p-4 border-b border-gray-800">
+            <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="bg-gray-900 px-3 py-2 rounded border border-gray-700 w-24"
+            >
+              {["GET", "POST", "PUT", "DELETE", "PATCH"].map((m) => (
+                  <option key={m} value={m} className="bg-gray-900">{m}</option>
+              ))}
+            </select>
+
+            <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter URL"
+                className="flex-1 bg-gray-900 px-4 py-2 rounded border border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+            />
+
+            <button
+                onClick={sendRequest}
+                disabled={loading}
+                className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded flex items-center gap-2"
+            >
+              <FiSend /> {loading ? "Sending..." : "Send"}
+            </button>
+          </div>
+
+          {/* Request History - Toggle ON/OFF */}
+          {showHistory && (
+              <div className="border-b border-gray-800 p-4">
+                <h3 className="text-gray-300 text-sm">📌 Request History</h3>
+                {history.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No history yet</p>
+                ) : (
+                    <ul className="text-gray-400">
+                      {history.map((req, index) => (
+                          <li key={index} className="flex justify-between items-center py-1">
+                            <button
+                                className="text-blue-400 hover:text-blue-300"
+                                onClick={() => {
+                                  setMethod(req.method);
+                                  setUrl(req.url);
+                                  setHeaders(req.headers);
+                                  setBody(req.body);
+                                }}
+                            >
+                              {req.method} - {req.url}
+                            </button>
+                            <span className="text-xs text-gray-500">{req.time}</span>
+                          </li>
+                      ))}
+                    </ul>
+                )}
+              </div>
+          )}
+
+          {/* Response Viewer */}
+          <div className="border-t border-gray-800 h-96 overflow-auto p-4">
+            <h3 className="text-gray-300">📌 Response Viewer</h3>
+            <div className="flex gap-2 mb-2">
+              <button onClick={() => setResponseType("json")} className="text-sm text-gray-300 hover:text-white">
+                JSON
+              </button>
+              <button onClick={() => setResponseType("xml")} className="text-sm text-gray-300 hover:text-white">
+                XML
+              </button>
+              <button onClick={() => setResponseType("html")} className="text-sm text-gray-300 hover:text-white">
+                HTML
+              </button>
+            </div>
+
+            {response?.error ? (
+                <div className="text-red-400">
+                  <div className="text-xl mb-2">Error {response.error.status}</div>
+                  <ReactJson src={response.error} theme="harmonic" />
+                </div>
+            ) : response?.data ? (
+                responseType === "json" ? (
+                    <ReactJson src={response.data} theme="harmonic" />
+                ) : responseType === "xml" ? (
+                    <pre className="bg-gray-900 p-4 rounded text-green-400">{response.data}</pre>
+                ) : (
+                    <div className="bg-gray-900 p-4 rounded text-gray-300" dangerouslySetInnerHTML={{ __html: response.data }} />
+                )
+            ) : (
+                <p className="text-gray-500">No response yet</p>
+            )}
+          </div>
+        </div>
+      </div>
   );
 }
